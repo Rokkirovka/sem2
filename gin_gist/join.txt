@@ -1,0 +1,81 @@
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT c.name as city_name, s.name as state_name
+FROM city c
+JOIN state s ON c.stateid = s.id
+WHERE s.ideology = 'Монархия'
+LIMIT 100;
+
+"QUERY PLAN"
+"Limit  (cost=0.42..252.31 rows=100 width=75) (actual time=2.921..169.803 rows=100 loops=1)"
+"  Buffers: shared hit=1042 read=778"
+"  ->  Nested Loop  (cost=0.42..202721.93 rows=80480 width=75) (actual time=2.920..169.740 rows=100 loops=1)"
+"        Buffers: shared hit=1042 read=778"
+"        ->  Seq Scan on city c  (cost=0.00..7578.00 rows=400000 width=37) (actual time=0.329..0.580 rows=454 loops=1)"
+"              Buffers: shared read=4"
+"        ->  Index Scan using state_pkey on state s  (cost=0.42..0.49 rows=1 width=46) (actual time=0.371..0.371 rows=0 loops=454)"
+"              Index Cond: (id = c.stateid)"
+"              Filter: ((ideology)::text = 'Монархия'::text)"
+"              Rows Removed by Filter: 1"
+"              Buffers: shared hit=1042 read=774"
+"Planning:"
+"  Buffers: shared hit=80 read=10 dirtied=2"
+"Planning Time: 3.488 ms"
+"Execution Time: 169.918 ms"
+
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT l.name as leader_name, d.name as dynasty_name
+FROM leader l
+JOIN dynasty d ON l.dynastyid = d.id
+WHERE l.birthdate > '1500-01-01';
+
+"QUERY PLAN"
+"Hash Join  (cost=1514.02..5290.86 rows=82884 width=50) (actual time=7.832..156.899 rows=83301 loops=1)"
+"  Hash Cond: (l.dynastyid = d.id)"
+"  Buffers: shared hit=4 read=2730"
+"  ->  Bitmap Heap Scan on leader l  (cost=1510.77..5060.82 rows=82884 width=35) (actual time=7.730..139.774 rows=83301 loops=1)"
+"        Recheck Cond: (birthdate > '1500-01-01'::date)"
+"        Heap Blocks: exact=2514"
+"        Buffers: shared hit=3 read=2730"
+"        ->  Bitmap Index Scan on idx_leader_birthdate_btree  (cost=0.00..1490.05 rows=82884 width=0) (actual time=7.502..7.502 rows=83301 loops=1)"
+"              Index Cond: (birthdate > '1500-01-01'::date)"
+"              Buffers: shared read=219"
+"  ->  Hash  (cost=2.00..2.00 rows=100 width=23) (actual time=0.041..0.042 rows=100 loops=1)"
+"        Buckets: 1024  Batches: 1  Memory Usage: 14kB"
+"        Buffers: shared hit=1"
+"        ->  Seq Scan on dynasty d  (cost=0.00..2.00 rows=100 width=23) (actual time=0.012..0.018 rows=100 loops=1)"
+"              Buffers: shared hit=1"
+"Planning:"
+"  Buffers: shared hit=4"
+"Planning Time: 0.130 ms"
+"Execution Time: 160.606 ms"
+
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT s.name, c.name
+FROM state s
+JOIN city c ON s.id = c.stateid
+WHERE c.id < 10000 AND s.id < 10000
+ORDER BY s.id, c.stateid; 
+
+"QUERY PLAN"
+"Sort  (cost=931.23..932.00 rows=310 width=83) (actual time=5.454..5.469 rows=328 loops=1)"
+"  Sort Key: s.id"
+"  Sort Method: quicksort  Memory: 64kB"
+"  Buffers: shared hit=271"
+"  ->  Hash Join  (cost=542.23..918.40 rows=310 width=83) (actual time=2.914..5.347 rows=328 loops=1)"
+"        Hash Cond: (c.stateid = s.id)"
+"        Buffers: shared hit=271"
+"        ->  Index Scan using city_pkey on city c  (cost=0.42..352.31 rows=9251 width=37) (actual time=0.029..1.454 rows=9999 loops=1)"
+"              Index Cond: (id < 10000)"
+"              Buffers: shared hit=119"
+"        ->  Hash  (cost=416.23..416.23 rows=10046 width=46) (actual time=2.844..2.845 rows=9999 loops=1)"
+"              Buckets: 16384  Batches: 1  Memory Usage: 895kB"
+"              Buffers: shared hit=152"
+"              ->  Index Scan using idx_state_id on state s  (cost=0.42..416.23 rows=10046 width=46) (actual time=0.005..1.573 rows=9999 loops=1)"
+"                    Index Cond: (id < 10000)"
+"                    Buffers: shared hit=152"
+"Planning:"
+"  Buffers: shared hit=16"
+"Planning Time: 0.190 ms"
+"Execution Time: 5.505 ms"

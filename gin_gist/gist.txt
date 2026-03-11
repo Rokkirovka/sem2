@@ -1,0 +1,84 @@
+DROP INDEX IF EXISTS idx_event_name_gin;
+DROP INDEX IF EXISTS idx_treaty_name_gin;
+
+CREATE INDEX idx_event_name_gist ON event USING gist (to_tsvector('russian', name));
+
+CREATE INDEX idx_treaty_name_gist ON treaty USING gist (to_tsvector('russian', name));
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT name 
+FROM event 
+WHERE to_tsvector('russian', name) @@ to_tsquery('russian', 'битва');
+
+"QUERY PLAN"
+"Bitmap Heap Scan on event  (cost=59.78..4191.63 rows=2000 width=51) (actual time=16.218..202.977 rows=66921 loops=1)"
+"  Recheck Cond: (to_tsvector('russian'::regconfig, (name)::text) @@ '''битв'''::tsquery)"
+"  Heap Blocks: exact=4552"
+"  Buffers: shared hit=6701"
+"  ->  Bitmap Index Scan on idx_event_name_gist  (cost=0.00..59.28 rows=2000 width=0) (actual time=15.726..15.727 rows=66921 loops=1)"
+"        Index Cond: (to_tsvector('russian'::regconfig, (name)::text) @@ '''битв'''::tsquery)"
+"        Buffers: shared hit=2149"
+"Planning Time: 0.092 ms"
+"Execution Time: 205.018 ms"
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT name 
+FROM event 
+WHERE to_tsvector('russian', name) @@ to_tsquery('russian', 'битва & мир');
+
+"QUERY PLAN"
+"Index Scan using idx_event_name_gist on event  (cost=0.28..44.46 rows=10 width=51) (actual time=2.816..2.817 rows=0 loops=1)"
+"  Index Cond: (to_tsvector('russian'::regconfig, (name)::text) @@ '''битв'' & ''мир'''::tsquery)"
+"  Buffers: shared hit=398"
+"Planning Time: 0.089 ms"
+"Execution Time: 2.832 ms"
+
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT name 
+FROM treaty 
+WHERE to_tsvector('russian', name) @@ to_tsquery('russian', 'торговля | союз');
+
+"QUERY PLAN"
+"Bitmap Heap Scan on treaty  (cost=58.20..2954.90 rows=1796 width=79) (actual time=10.076..290.687 rows=72084 loops=1)"
+"  Recheck Cond: (to_tsvector('russian'::regconfig, (name)::text) @@ '''торговл'' | ''союз'''::tsquery)"
+"  Heap Blocks: exact=2532"
+"  Buffers: shared hit=3581"
+"  ->  Bitmap Index Scan on idx_treaty_name_gist  (cost=0.00..57.75 rows=1796 width=0) (actual time=9.789..9.789 rows=72084 loops=1)"
+"        Index Cond: (to_tsvector('russian'::regconfig, (name)::text) @@ '''торговл'' | ''союз'''::tsquery)"
+"        Buffers: shared hit=1049"
+"Planning Time: 0.071 ms"
+"Execution Time: 293.075 ms"
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT name 
+FROM treaty 
+WHERE to_tsvector('russian', name) @@ to_tsquery('russian', 'мир & !война');
+
+"QUERY PLAN"
+"Bitmap Heap Scan on treaty  (cost=31.23..2060.36 rows=896 width=79) (actual time=7.306..180.234 rows=36322 loops=1)"
+"  Recheck Cond: (to_tsvector('russian'::regconfig, (name)::text) @@ '''мир'' & !''войн'''::tsquery)"
+"  Heap Blocks: exact=2531"
+"  Buffers: shared hit=3580"
+"  ->  Bitmap Index Scan on idx_treaty_name_gist  (cost=0.00..31.00 rows=896 width=0) (actual time=7.042..7.042 rows=36322 loops=1)"
+"        Index Cond: (to_tsvector('russian'::regconfig, (name)::text) @@ '''мир'' & !''войн'''::tsquery)"
+"        Buffers: shared hit=1049"
+"Planning Time: 0.065 ms"
+"Execution Time: 181.450 ms"
+
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT name 
+FROM event 
+WHERE to_tsvector('russian', name) @@ to_tsquery('russian', 'битва <-> при');
+
+"QUERY PLAN"
+"Bitmap Heap Scan on event  (cost=59.78..4191.63 rows=2000 width=51) (actual time=15.496..206.336 rows=66921 loops=1)"
+"  Recheck Cond: (to_tsvector('russian'::regconfig, (name)::text) @@ '''битв'''::tsquery)"
+"  Heap Blocks: exact=4552"
+"  Buffers: shared hit=6701"
+"  ->  Bitmap Index Scan on idx_event_name_gist  (cost=0.00..59.28 rows=2000 width=0) (actual time=15.046..15.047 rows=66921 loops=1)"
+"        Index Cond: (to_tsvector('russian'::regconfig, (name)::text) @@ '''битв'''::tsquery)"
+"        Buffers: shared hit=2149"
+"Planning Time: 0.069 ms"
+"Execution Time: 208.483 ms"
