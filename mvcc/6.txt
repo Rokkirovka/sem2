@@ -1,0 +1,32 @@
+SELECT 
+    schemaname, 
+    relname as tablename,  -- вот так правильно
+    n_live_tup, 
+    n_dead_tup 
+FROM pg_stat_user_tables 
+WHERE relname IN ('leader', 'commander', 'state');
+
+"schemaname","tablename","n_live_tup","n_dead_tup"
+"public","state","300000","0"
+"public","commander","350000","0"
+"public","leader","250000","0"
+
+VACUUM VERBOSE leader;
+
+INFO:  vacuuming "demo.public.leader"
+INFO:  launched 1 parallel vacuum worker for index cleanup (planned: 1)
+INFO:  finished vacuuming "demo.public.leader": index scans: 0
+pages: 0 removed, 2514 remain, 1 scanned (0.04% of total)
+tuples: 0 removed, 250000 remain, 0 are dead but not yet removable
+removable cutoff: 764, which was 0 XIDs old when operation ended
+index scan not needed: 0 pages from table (0.00% of total) had 0 dead item identifiers removed
+avg read rate: 0.617 MB/s, avg write rate: 0.000 MB/s
+buffer usage: 37 hits, 1 misses, 0 dirtied
+WAL usage: 0 records, 0 full page images, 0 bytes
+system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.01 s
+VACUUM
+
+"schemaname","tablename","n_live_tup","n_dead_tup"
+"public","state","300000","0"
+"public","commander","350000","0"
+"public","leader","250000","0"

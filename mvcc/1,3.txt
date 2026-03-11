@@ -1,0 +1,52 @@
+CREATE TABLE mvcc_test (
+    id SERIAL PRIMARY KEY,
+    data TEXT,
+    counter INTEGER
+);
+
+INSERT INTO mvcc_test (data, counter) VALUES 
+    ('Первая запись', 100),
+    ('Вторая запись', 200),
+    ('Третья запись', 300);
+
+SELECT 
+    ctid,
+    xmin,
+    xmax,
+    txid_current() as current_xid,
+    *
+FROM mvcc_test;
+
+"ctid","xmin","xmax","current_xid","id","data","counter"
+"(0,1)","760","0","760",1,"Первая запись",100
+"(0,2)","760","0","760",2,"Вторая запись",200
+"(0,3)","760","0","760",3,"Третья запись",300
+
+BEGIN;
+
+SELECT txid_current(); --761
+
+UPDATE mvcc_test 
+SET counter = 999, data = 'Первая запись (обновлена)' 
+WHERE id = 1;
+
+commit
+
+SELECT 
+    ctid,
+    xmin,
+    xmax,
+    txid_current() as current_xid,
+    *
+FROM mvcc_test;
+
+"ctid","xmin","xmax","current_xid","id","data","counter"
+"(0,2)","760","0","762",2,"Вторая запись",200
+"(0,3)","760","0","762",3,"Третья запись",300
+"(0,4)","761","0","762",1,"Первая запись (обновлена)",999
+
+BEGIN;
+
+SELECT txid_current(); --763
+
+Commit

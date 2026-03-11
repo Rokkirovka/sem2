@@ -1,0 +1,15 @@
+--1
+BEGIN;
+UPDATE commander SET name = 'Командир Deadlock 1' WHERE id = 1;
+
+--2
+BEGIN;
+UPDATE commander SET name = 'Командир Deadlock 2' WHERE id = 2;
+
+--1
+UPDATE commander SET name = 'Командир Deadlock 1 Updated' WHERE id = 2;
+--блокируется, ждет 2
+
+--2
+UPDATE commander SET name = 'Командир Deadlock 2 Updated' WHERE id = 1;
+-- Postgres обнаруживает deadlock и завершает одну транзакцию

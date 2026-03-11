@@ -1,0 +1,13 @@
+--1
+BEGIN;
+SELECT * FROM leader WHERE id = 5 FOR UPDATE;
+
+--2
+BEGIN;
+SELECT * FROM leader WHERE id = 5 FOR UPDATE; -- зависает
+
+BEGIN;
+SELECT * FROM leader WHERE id = 5 FOR SHARE;  -- зависает
+
+BEGIN;
+UPDATE leader SET name = 'test' WHERE id = 5; -- зависает
