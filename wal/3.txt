@@ -1,0 +1,5 @@
+Дампс сттруктуры
+pg_dump -U postgres -s postgres > structure_only.sql
+
+Дамп одной таблицы
+pg_dump -U postgres -t postgres > alliance_table.sql

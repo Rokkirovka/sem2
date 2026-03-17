@@ -1,0 +1,25 @@
+SELECT pg_current_wal_insert_lsn() AS lsn_before,
+       pg_walfile_name(pg_current_wal_insert_lsn()) AS wal_file_before;
+
+Результат:
+"lsn_before","wal_file_before"
+"0/307C91C0","000000010000000000000030"
+
+INSERT INTO alliance (name) VALUES ('Северный альянс') RETURNING id;
+
+Результат:
+"id"
+51
+
+SELECT pg_current_wal_insert_lsn() AS lsn_after,
+       pg_walfile_name(pg_current_wal_insert_lsn()) AS wal_file_after;
+
+Результат:
+"lsn_after","wal_file_after"
+"0/307CA378","000000010000000000000030"
+
+SELECT '0/0'::pg_lsn + (pg_current_wal_insert_lsn() - '0/0'::pg_lsn) AS wal_bytes_used;
+
+Результат:
+"wal_bytes_used"
+"0/307CA378"

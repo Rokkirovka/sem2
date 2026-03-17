@@ -1,0 +1,24 @@
+BEGIN;
+SELECT pg_current_wal_insert_lsn() AS lsn_before_insert;
+
+Результат:
+"lsn_before_insert"
+"0/307CA510"
+
+INSERT INTO dynasty (name, foundername) VALUES ('Рюриковичи', 'Рюрик');
+
+SELECT pg_current_wal_insert_lsn() AS lsn_after_insert;
+
+результат:
+"lsn_after_insert"
+"0/307CCC60"
+
+COMMIT;
+
+SELECT pg_current_wal_insert_lsn() AS lsn_after_commit;
+
+Результат:
+"lsn_after_commit"
+"0/307CCCC0"
+
+вывод: после коммитаLSN увеличивается

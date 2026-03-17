@@ -1,0 +1,10 @@
+INSERT INTO alliance (name) VALUES
+    ('Северный альянс'),
+    ('Южный союз'),
+    ('Восточная коалиция')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO state (name, ideology, allianceid)
+SELECT 'Новгородская республика', 'Вечевая демократия', id 
+FROM alliance WHERE name = 'Северный альянс'
+ON CONFLICT (id) DO NOTHING;

@@ -1,0 +1,16 @@
+SELECT pg_current_wal_insert_lsn() AS lsn_start,
+       pg_wal_lsn_diff(pg_current_wal_insert_lsn(), '0/0') AS wal_bytes_before;
+
+результат:
+"lsn_start","wal_bytes_before"
+"0/307CCDA8","813485480"
+
+INSERT INTO city (name, stateid)
+SELECT 'Город ' || generate_series(1, 1000), 1;
+
+SELECT pg_current_wal_insert_lsn() AS lsn_end,
+       pg_wal_lsn_diff(pg_current_wal_insert_lsn(), '0/0') AS wal_bytes_after,
+       pg_wal_lsn_diff(pg_current_wal_insert_lsn(), '0/0') - 813485480 AS wal_bytes_used;
+
+"lsn_end","wal_bytes_after","wal_bytes_used"
+"0/307F74C0","813659328","173848"
