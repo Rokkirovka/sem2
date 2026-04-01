@@ -1,0 +1,98 @@
+1 задание
+
+1) необходимо добавить explain
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, shop_id, total_sum, sold_at
+FROM store_checks
+WHERE shop_id = 77
+  AND sold_at >= TIMESTAMP '2025-02-14 00:00:00'
+  AND sold_at < TIMESTAMP '2025-02-15 00:00:00';
+
+результат:
+
+"QUERY PLAN"
+"Seq Scan on store_checks  (cost=0.00..1880.07 rows=1 width=26) (actual time=4.339..4.340 rows=3 loops=1)"
+"  Filter: ((sold_at >= '2025-02-14 00:00:00'::timestamp without time zone) AND (sold_at < '2025-02-15 00:00:00'::timestamp without time zone) AND (shop_id = 77))"
+"  Rows Removed by Filter: 70001"
+"  Buffers: shared hit=655"
+"Planning:"
+"  Buffers: shared hit=76"
+"Planning Time: 1.853 ms"
+"Execution Time: 4.352 ms"
+
+2)
+был использован seq scan
+не помогает уже созданный hash так как есть диапазонная проверка а еще есть b-tree но не на тот столбец и поэтому не помогает
+
+3) лучше подходит b-tree под столбец sold_at
+4)
+5)
+6) желательно чтобы убедиться что все работает так как ожидается и действительно есть прирост
+
+2 задание
+
+1) необходимо добавить explain
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT m.id, m.member_level, v.spend, v.visit_at
+FROM club_members m
+JOIN club_visits v ON v.member_id = m.id
+WHERE m.member_level = 'premium'
+  AND v.visit_at >= TIMESTAMP '2025-02-01 00:00:00'
+  AND v.visit_at < TIMESTAMP '2025-02-10 00:00:00';
+
+результат:
+
+"QUERY PLAN"
+"Hash Join  (cost=691.05..1802.87 rows=733 width=27) (actual time=2.420..5.389 rows=819 loops=1)"
+"  Hash Cond: (v.member_id = m.id)"
+"  Buffers: shared hit=1081 read=31"
+"  ->  Bitmap Heap Scan on club_visits v  (cost=233.72..1316.53 rows=11054 width=22) (actual time=0.864..3.137 rows=10998 loops=1)"
+"        Recheck Cond: ((visit_at >= '2025-02-01 00:00:00'::timestamp without time zone) AND (visit_at < '2025-02-10 00:00:00'::timestamp without time zone))"
+"        Heap Blocks: exact=917"
+"        Buffers: shared hit=917 read=31"
+"        ->  Bitmap Index Scan on idx_club_visits_visit_at  (cost=0.00..230.96 rows=11054 width=0) (actual time=0.638..0.638 rows=10998 loops=1)"
+"              Index Cond: ((visit_at >= '2025-02-01 00:00:00'::timestamp without time zone) AND (visit_at < '2025-02-10 00:00:00'::timestamp without time zone))"
+"              Buffers: shared read=31"
+"  ->  Hash  (cost=439.00..439.00 rows=1466 width=13) (actual time=1.545..1.546 rows=1466 loops=1)"
+"        Buckets: 2048  Batches: 1  Memory Usage: 85kB"
+"        Buffers: shared hit=164"
+"        ->  Seq Scan on club_members m  (cost=0.00..439.00 rows=1466 width=13) (actual time=0.025..1.427 rows=1466 loops=1)"
+"              Filter: (member_level = 'premium'::text)"
+"              Rows Removed by Filter: 20534"
+"              Buffers: shared hit=164"
+"Planning:"
+"  Buffers: shared hit=210"
+"Planning Time: 9.427 ms"
+"Execution Time: 5.788 ms"
+
+2) был использован hash join
+3) потому что никакой другой лучший join здесь неприменим и есть проверка на равенство
+4)club_visits на visit_at и club_members на full_name
+5) 
+8) что было значительное количество просмотрено 
+
+3 задание
+
+результат:
+
+"xmin","xmax","ctid","id","title","stock"
+"1360","0","(0,4)","1","Cable",38
+"1355","0","(0,2)","2","Adapter",25
+
+(я забыл сохранить два предыдущих select)
+
+1) xmin изменился потому что были изменены данные чтобы указывать на индекс изменившего, xmax изменился чтобы указывать на индекс последнего удалившего
+2) чтобы можно было корректно проводить транзакции 
+3) строка просто помечается и создается новая с индексом xmin равному xmax у удаленной
+4) все это нужно для очистки таблицы от устаревших удаленный строк. autovacuum происходит автоматически, VACUUM FULL может полностью блокировать таблицу
+5) VACUUM FULL 
+
+4 задание
+
+5 задание
+create partition on region code (default)
+3) это зависит от того, включены ли необходимые диапазоны в where
+4) нет
+5) в default попадают те данные которые не подошли к другим секциям
+
