@@ -90,6 +90,8 @@ WHERE m.member_level = 'premium'
 
 4 задание
 
+FOR KEY SHARE блокирует строку от параллельного update, FOR NO KEY UPDATE нет
+
 5 задание
 create partition on region code (default)
 3) это зависит от того, включены ли необходимые диапазоны в where
