@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  elasticsearch:
+    image: elasticsearch:7.17.22
+    container_name: elasticsearch-demo
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+volumes:
+  es_data:

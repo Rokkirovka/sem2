@@ -1,0 +1,131 @@
+создание индекса products:
+
+$body = @'
+{
+  "mappings": {
+    "properties": {
+      "name": { "type": "text" },
+      "category": { "type": "keyword" },
+      "price": { "type": "float" },
+      "inStock": { "type": "boolean" }
+    }
+  }
+}
+'@
+
+Invoke-RestMethod -Method Put -Uri "http://localhost:9200/products" -ContentType "application/json" -Body $body
+
+ответ:
+
+acknowledged shards_acknowledged index
+------------ ------------------- -----
+        True                True products
+
+
+тестовые данные:
+
+Invoke-RestMethod -Method Post -Uri "http://localhost:9200/products/_doc" -ContentType "application/json" -Body '{"name":"Ноутбук Lenovo","category":"electronics","price":65000,"inStock":true}'
+
+_index        : products
+_type         : _doc
+_id           : CCMGi50B4V19fSG6Buab
+_version      : 1
+result        : created
+_shards       : @{total=2; successful=1; failed=0}
+_seq_no       : 0
+_primary_term : 1
+
+Invoke-RestMethod -Method Put -Uri "http://localhost:9200/products/_doc/1" -ContentType "application/json" -Body '{"name":"Смартфон Samsung","category":"electronics","price":48000,"inStock":true}'
+
+_index        : products
+_type         : _doc
+_id           : 1
+_version      : 1
+result        : created
+_shards       : @{total=2; successful=1; failed=0}
+_seq_no       : 1
+_primary_term : 1
+
+Invoke-RestMethod -Method Put -Uri "http://localhost:9200/products/_doc/2" -ContentType "application/json" -Body '{"name":"Мышь Logitech","category":"accessories","price":2500,"inStock":true}'
+
+
+_index        : products
+_type         : _doc
+_id           : 2
+_version      : 1
+result        : created
+_shards       : @{total=2; successful=1; failed=0}
+_seq_no       : 2
+_primary_term : 1
+
+Invoke-RestMethod -Method Put -Uri "http://localhost:9200/products/_doc/3" -ContentType "application/json" -Body '{"name":"Наушники Sony","category":"electronics","price":7000,"inStock":false}'
+
+_index        : products
+_type         : _doc
+_id           : 3
+_version      : 1
+result        : created
+_shards       : @{total=2; successful=1; failed=0}
+_seq_no       : 3
+_primary_term : 1
+
+обновление:
+
+Invoke-RestMethod -Method Post -Uri "http://localhost:9200/products/_update/1" -ContentType "application/json" -Body '{"doc":{"price":45000}}'
+
+_index        : products
+_type         : _doc
+_id           : 1
+_version      : 2
+result        : updated
+_shards       : @{total=2; successful=1; failed=0}
+_seq_no       : 4
+_primary_term : 1
+
+Поиск по названию товара
+
+$res = Invoke-RestMethod -Method Post -Uri "http://localhost:9200/products/_search" -ContentType "application/json" -Body '{"query":{"match":{"name":"Laptop"}}}'
+$res.hits.hits._source | Format-Table -AutoSize
+
+name          category    price inStock
+----          --------    ----- -------
+Lenovo Laptop electronics 65000    True
+
+match
+
+$res = Invoke-RestMethod -Method Post -Uri "http://localhost:9200/products/_search" -ContentType "application/json" -Body '{"query":{"match":{"name":"Samsung"}}}'
+$res.hits.hits._source | Format-Table -AutoSize
+
+name               category    price inStock
+----               --------    ----- -------
+Samsung Smartphone electronics 48000    True
+
+term
+
+$res = Invoke-RestMethod -Method Post -Uri "http://localhost:9200/products/_search" -ContentType "application/json" -Body '{"query":{"term":{"category":"electronics"}}}'
+$res.hits.hits._source | Format-Table -AutoSize
+
+name               category    price inStock
+----               --------    ----- -------
+Lenovo Laptop      electronics 65000    True
+Samsung Smartphone electronics 48000    True
+Sony Headphones    electronics  7000   False
+
+range
+
+$res = Invoke-RestMethod -Method Post -Uri "http://localhost:9200/products/_search" -ContentType "application/json" -Body '{"query":{"range":{"price":{"gte":10000,"lte":60000}}}}'
+$res.hits.hits._source | Format-Table -AutoSize
+
+name               category    price inStock
+----               --------    ----- -------
+Samsung Smartphone electronics 48000    True
+
+bool
+
+$res = Invoke-RestMethod -Method Post -Uri "http://localhost:9200/products/_search" -ContentType "application/json" -Body '{"query":{"bool":{"must":[{"term":{"category":"electronics"}},{"term":{"inStock":true}},{"range":{"price":{"gt":10000}}}]}}}'
+$res.hits.hits._source | Format-Table -AutoSize
+
+name               category    price inStock
+----               --------    ----- -------
+Lenovo Laptop      electronics 65000    True
+Samsung Smartphone electronics 48000    True
