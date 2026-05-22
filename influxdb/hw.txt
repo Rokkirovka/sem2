@@ -1,0 +1,106 @@
+Команда:
+docker compose up -d
+
+Результат:
+[+] Running 2/2
+ ✔ Container influxdb3-core     Started
+ ✔ Container influxdb3-explorer Started
+
+Зачем:
+Запускает два контейнера: InfluxDB 3.x на порту 8181 и веб-интерфейс (UI) на порту 8888.
+
+---
+
+Команда:
+docker ps
+
+Результат:
+CONTAINER ID   IMAGE                           STATUS
+...           influxdb:3-core                 Up
+...           influxdata/influxdb3-ui:1.7.0   Up
+
+Зачем:
+Проверяет, что оба контейнера успешно запущены и работают.
+
+---
+
+Команда:
+docker exec -it influxdb3-core influxdb3 create database mydb --token apiv3_ZpSc2ZQ74Bsqm7lds5zhcacEKRmPKQx0RjAHNPUVuGfHD-YxJzhwauqIQwFvyrY3czrQH_NcaHBTolDh5aWnrw
+
+Результат:
+Database "mydb" created successfully
+
+Зачем:
+Создаёт bucket (базу данных) с именем mydb. Bucket — это контейнер для всех измерений (аналог базы данных в SQL).
+
+---
+
+Команда:
+curl.exe -G "http://localhost:8181/api/v3/query_sql" -H "Authorization: Bearer apiv3_ZpSc2ZQ74Bsqm7lds5zhcacEKRmPKQx0RjAHNPUVuGfHD-YxJzhwauqIQwFvyrY3czrQH_NcaHBTolDh5aWnrw" --data-urlencode "db=mydb" --data-urlencode "q=SHOW TABLES"
+
+Результат:
+[{"table_catalog":"public","table_schema":"system","table_name":"distinct_caches",...}]
+
+Зачем:
+Проверяет, что база данных mydb доступна и принимает SQL-запросы.
+
+---
+
+Команда:
+curl.exe -X POST "http://localhost:8181/api/v3/write_lp?db=mydb" -H "Authorization: Bearer apiv3_ZpSc2ZQ74Bsqm7lds5zhcacEKRmPKQx0RjAHNPUVuGfHD-YxJzhwauqIQwFvyrY3czrQH_NcaHBTolDh5aWnrw" --data-raw "temperature,location=room1 value=23"
+
+Результат:
+(пустой ответ — успех)
+
+Зачем:
+Вставляет первую точку данных в формате Line Protocol: measurement = temperature, тег location = room1, поле value = 23. Время добавляется автоматически.
+
+---
+
+Команда:
+curl.exe -X POST "http://localhost:8181/api/v3/write_lp?db=mydb" -H "Authorization: Bearer apiv3_ZpSc2ZQ74Bsqm7lds5zhcacEKRmPKQx0RjAHNPUVuGfHD-YxJzhwauqIQwFvyrY3czrQH_NcaHBTolDh5aWnrw" --data-raw "temperature,location=room1 value=24
+temperature,location=room1 value=25
+temperature,location=room2 value=20
+temperature,location=room2 value=21
+temperature,location=room2 value=22"
+
+Результат:
+(пустой ответ)
+
+Зачем:
+Вставляет ещё 5 точек данных: 2 для room1 и 3 для room2.
+
+---
+
+Команда:
+curl.exe -G "http://localhost:8181/api/v3/query_sql" -H "Authorization: Bearer apiv3_ZpSc2ZQ74Bsqm7lds5zhcacEKRmPKQx0RjAHNPUVuGfHD-YxJzhwauqIQwFvyrY3czrQH_NcaHBTolDh5aWnrw" --data-urlencode "db=mydb" --data-urlencode "q=SELECT * FROM temperature"
+
+Результат:
+[{"location":"room1","time":"2026-05-22T10:27:17.042475820","value":23.0},{"location":"room1","time":"2026-05-22T10:27:25.755818767","value":25.0},{"location":"room2","time":"2026-05-22T10:27:25.755818767","value":22.0}]
+
+Зачем:
+Выбирает все данные из measurement temperature. Видно, что записалось 3 точки (остальные могли не записаться из-за одинаковых timestamp — в InfluxDB точка с одинаковыми тегами и временем перезаписывается).
+
+---
+
+Команда:
+curl.exe -G "http://localhost:8181/api/v3/query_sql" -H "Authorization: Bearer apiv3_ZpSc2ZQ74Bsqm7lds5zhcacEKRmPKQx0RjAHNPUVuGfHD-YxJzhwauqIQwFvyrY3czrQH_NcaHBTolDh5aWnrw" --data-urlencode "db=mydb" --data-urlencode "q=SELECT * FROM temperature WHERE time >= now() - interval '5 minutes'"
+
+Результат:
+[{"location":"room1","time":"2026-05-22T10:27:17.042475820","value":23.0},{"location":"room1","time":"2026-05-22T10:27:25.755818767","value":25.0},{"location":"room2","time":"2026-05-22T10:27:25.755818767","value":22.0}]
+
+Зачем:
+Фильтрует данные по времени — показывает только записи за последние 5 минут. Все наши данные попадают в этот интервал.
+
+---
+
+Команда:
+curl.exe -G "http://localhost:8181/api/v3/query_sql" -H "Authorization: Bearer apiv3_ZpSc2ZQ74Bsqm7lds5zhcacEKRmPKQx0RjAHNPUVuGfHD-YxJzhwauqIQwFvyrY3czrQH_NcaHBTolDh5aWnrw" --data-urlencode "db=mydb" --data-urlencode "q=SELECT location, avg(value) AS avg_value FROM temperature GROUP BY location"
+
+Результат:
+[{"location":"room2","avg_value":22.0},{"location":"room1","avg_value":24.0}]
+
+Зачем:
+Группирует данные по тегу location и вычисляет среднее значение value для каждой комнаты:
+- room1: (23 + 25) / 2 = 24
+- room2: 22 (только одна точка, поэтому среднее = 22)

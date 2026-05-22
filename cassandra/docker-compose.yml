@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  cassandra1:
+    image: cassandra:5.0
+    container_name: cassandra1
+    hostname: cassandra1
+    ports:
+      - "9042:9042"      # CQL порт (для подключения)
+      - "7000:7000"      # Межнодовое общение (опционально)
+    networks:
+      - cassandra_net
+    environment:
+      CASSANDRA_CLUSTER_NAME: DemoCluster
+      CASSANDRA_DC: dc1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_SEEDS: cassandra1,cassandra2,cassandra3   # все три как seeds
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 100M
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  cassandra2:
+    image: cassandra:5.0
+    container_name: cassandra2
+    hostname: cassandra2
+    depends_on:
+      cassandra1:
+        condition: service_healthy   # ждём, пока cassandra1 не будет готова
+    networks:
+      - cassandra_net
+    environment:
+      CASSANDRA_CLUSTER_NAME: DemoCluster
+      CASSANDRA_DC: dc1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_SEEDS: cassandra1,cassandra2,cassandra3
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 100M
+
+  cassandra3:
+    image: cassandra:5.0
+    container_name: cassandra3
+    hostname: cassandra3
+    depends_on:
+      cassandra1:
+        condition: service_healthy
+    networks:
+      - cassandra_net
+    environment:
+      CASSANDRA_CLUSTER_NAME: DemoCluster
+      CASSANDRA_DC: dc1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_SEEDS: cassandra1,cassandra2,cassandra3
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 100M
+
+networks:
+  cassandra_net:
+    driver: bridge

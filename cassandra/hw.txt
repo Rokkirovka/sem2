@@ -1,0 +1,184 @@
+Команда:
+CREATE KEYSPACE demo WITH replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
+
+Результат:
+cqlsh> CREATE KEYSPACE demo WITH replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
+cqlsh>
+
+Зачем:
+Создаёт пространство ключей (keyspace) с тремя копиями данных для отказоустойчивости.
+
+---
+
+Команда:
+USE demo;
+
+Результат:
+cqlsh:demo>
+
+Зачем:
+Переключается на созданный keyspace для выполнения последующих операций.
+
+---
+
+Команда:
+SELECT peer, data_center, rack, release_version FROM system.peers;
+
+Результат:
+ peer       | data_center | rack  | release_version
+------------+-------------+-------+-----------------
+ 172.26.0.3 |         dc1 | rack1 |           5.0.8
+ 172.26.0.4 |         dc1 | rack1 |           5.0.8
+
+(2 rows)
+
+Зачем:
+Проверяет, что две другие ноды (cassandra2 и cassandra3) видны из cassandra1 и работают.
+
+---
+
+Команда:
+CREATE TABLE users_by_id ( user_id UUID, name TEXT, email TEXT, registered_at TIMESTAMP, PRIMARY KEY (user_id) );
+
+Результат:
+cqlsh:demo> CREATE TABLE users_by_id ( user_id UUID, name TEXT, email TEXT, registered_at TIMESTAMP, PRIMARY KEY (user_id) );
+cqlsh:demo>
+
+Зачем:
+Создаёт таблицу для поиска пользователей по user_id (partition key).
+
+---
+
+Команда:
+CREATE TABLE users_by_email ( email TEXT, user_id UUID, name TEXT, registered_at TIMESTAMP, PRIMARY KEY (email) );
+
+Результат:
+cqlsh:demo> CREATE TABLE users_by_email ( email TEXT, user_id UUID, name TEXT, registered_at TIMESTAMP, PRIMARY KEY (email) );
+cqlsh:demo>
+
+Зачем:
+Создаёт таблицу для поиска пользователей по email (другой partition key) — пример денормализации для разных запросов.
+
+---
+
+Команда:
+INSERT INTO users_by_id (user_id, name, email, registered_at) VALUES (123e4567-e89b-12d3-a456-426614174000, 'Alice', 'alice@example.com', toTimestamp(now()));
+
+Результат:
+cqlsh:demo> INSERT INTO users_by_id (user_id, name, email, registered_at) VALUES (123e4567-e89b-12d3-a456-426614174000, 'Alice', 'alice@example.com', toTimestamp(now()));
+cqlsh:demo>
+
+Зачем:
+Добавляет пользователя Alice в первую таблицу.
+
+---
+
+Команда:
+INSERT INTO users_by_email (email, user_id, name, registered_at) VALUES ('alice@example.com', 123e4567-e89b-12d3-a456-426614174000, 'Alice', toTimestamp(now()));
+
+Результат:
+cqlsh:demo> INSERT INTO users_by_email (email, user_id, name, registered_at) VALUES ('alice@example.com', 123e4567-e89b-12d3-a456-426614174000, 'Alice', toTimestamp(now()));
+cqlsh:demo>
+
+Зачем:
+Добавляет те же данные во вторую таблицу (одинаковые данные, разный ключ).
+
+---
+
+Команда:
+SELECT * FROM users_by_id WHERE user_id = 123e4567-e89b-12d3-a456-426614174000;
+
+Результат:
+ user_id                              | email             | name  | registered_at
+--------------------------------------+-------------------+-------+---------------------------------
+ 123e4567-e89b-12d3-a456-426614174000 | alice@example.com | Alice | 2026-05-22 09:48:30.501000+0000
+
+(1 rows)
+
+Зачем:
+Успешно выбирает данные по partition key (user_id).
+
+---
+
+Команда:
+INSERT INTO users_by_id (user_id, name, email, registered_at) VALUES (223e4567-e89b-12d3-a456-426614174001, 'Bob', 'bob@example.com', toTimestamp(now()));
+
+Результат:
+cqlsh:demo> INSERT INTO users_by_id (user_id, name, email, registered_at) VALUES (223e4567-e89b-12d3-a456-426614174001, 'Bob', 'bob@example.com', toTimestamp(now()));
+cqlsh:demo>
+
+Зачем:
+Добавляет второго пользователя Bob для демонстрации DELETE.
+
+---
+
+Команда:
+UPDATE users_by_id SET email = 'alice_new@example.com' WHERE user_id = 123e4567-e89b-12d3-a456-426614174000;
+
+Результат:
+cqlsh:demo> UPDATE users_by_id SET email = 'alice_new@example.com' WHERE user_id = 123e4567-e89b-12d3-a456-426614174000;
+cqlsh:demo>
+
+Зачем:
+Обновляет email у Alice (в Cassandra UPDATE работает как upsert).
+
+---
+
+Команда:
+DELETE FROM users_by_id WHERE user_id = 223e4567-e89b-12d3-a456-426614174001;
+
+Результат:
+cqlsh:demo> DELETE FROM users_by_id WHERE user_id = 223e4567-e89b-12d3-a456-426614174001;
+cqlsh:demo>
+
+Зачем:
+Удаляет пользователя Bob из таблицы.
+
+---
+
+Команда:
+SELECT * FROM users_by_id WHERE email = 'alice@example.com';
+
+Результат:
+InvalidRequest: Error from server: code=2200 [Invalid query] message="Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
+
+Зачем:
+Пытается выбрать данные по полю email, которое НЕ является partition key. Cassandra блокирует такой запрос, потому что он потребовал бы полного сканирования всех партиций.
+
+---
+
+Команда (в новом терминале):
+docker stop cassandra3
+
+Результат:
+cassandra3
+
+Зачем:
+Останавливает одну ноду кластера для проверки отказоустойчивости.
+
+---
+
+Команда (в cqlsh после остановки ноды):
+SELECT * FROM users_by_id WHERE user_id = 123e4567-e89b-12d3-a456-426614174000;
+
+Результат:
+ user_id                              | email                 | name  | registered_at
+--------------------------------------+-----------------------+-------+---------------------------------
+ 123e4567-e89b-12d3-a456-426614174000 | alice_new@example.com | Alice | 2026-05-22 09:48:30.501000+0000
+
+(1 rows)
+
+Зачем:
+Чтение работает даже при остановленной одной ноде, потому что replication_factor=3 и данные есть на других нодах.
+
+---
+
+Команда (в cqlsh после остановки ноды):
+INSERT INTO users_by_id (user_id, name, email, registered_at) VALUES (323e4567-e89b-12d3-a456-426614174002, 'Charlie', 'charlie@example.com', toTimestamp(now()));
+
+Результат:
+cqlsh:demo> INSERT INTO users_by_id (user_id, name, email, registered_at) VALUES (323e4567-e89b-12d3-a456-426614174002, 'Charlie', 'charlie@example.com', toTimestamp(now()));
+cqlsh:demo>
+
+Зачем:
+Запись тоже работает при остановленной одной ноде. Cassandra продолжает принимать записи, а когда нода вернётся в кластер, данные синхронизируются (anti-entropy repair).
